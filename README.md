@@ -15,21 +15,3 @@ This course consists of the following modules:
 + Creating Nodes and Relationships
 + Getting More Out of Neo4j
 + Wrap up
-
-### About this course
-
-### Introduction to Graph Databases
-
-### Introduction to Neo4j
-
-### Setting Up Your Development Environment
-
-### Introduction to Cypher
-
-### Getting More Out of Queries
-
-### Creating Nodes and Relationships
-
-### Getting More Out of Neo4j
-
-### Wrap up
