@@ -10,7 +10,7 @@ This course consists of the following modules:
 + [Introduction to Graph Databases](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-1/)
 + [Introduction to Neo4j](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-2/)
 + [Setting Up Your Development Environment](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-3/)
-+ Introduction to Cypher
++ [Introduction to Cypher](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-4/)
 + Getting More Out of Queries
 + Creating Nodes and Relationships
 + Getting More Out of Neo4j
