@@ -15,3 +15,10 @@ This course consists of the following modules:
 + Creating Nodes and Relationships
 + Getting More Out of Neo4j
 + Wrap up
+
+## Helpful resources
+
+Throughout this training, you should refer to:
+
++ [Neo4j Cypher Manual](https://neo4j.com/docs/cypher-manual/current/)
++ [Cypher Reference card](https://neo4j.com/docs/cypher-refcard/current/)

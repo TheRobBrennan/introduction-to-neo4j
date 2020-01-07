@@ -6,6 +6,20 @@ For my own learning purposes, I will include sections of text from the original 
 
 ## About this module
 
+Cypher is the query language you use to retrieve data from the Neo4j Database, as well as create and update the data.
+
+At the end of this module, you should be able to write Cypher statements to:
+
++ Retrieve nodes from the graph.
++ Filter nodes retrieved using labels and property values of nodes.
++ Retrieve property values from nodes in the graph.
++ Filter nodes retrieved using relationships.
+
+Throughout this training, you should refer to:
+
++ [Neo4j Cypher Manual](https://neo4j.com/docs/cypher-manual/current/)
++ [Cypher Reference card](https://neo4j.com/docs/cypher-refcard/current/)
+
 ## What is Cypher?
 
 ### Cypher is ASCII art
