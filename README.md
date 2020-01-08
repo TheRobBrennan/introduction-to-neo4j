@@ -14,7 +14,7 @@ This course consists of the following modules:
 + [Getting More Out of Queries](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-5/)
 + [Creating Nodes and Relationships](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-6/)
 + [Getting More Out of Neo4j](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-7/)
-+ Wrap up
++ [Wrap up](https://neo4j.com/graphacademy/online-training/introduction-to-neo4j/part-8/)
 
 ## Helpful resources
 
