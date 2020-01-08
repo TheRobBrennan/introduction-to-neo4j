@@ -776,9 +776,9 @@ What variables, can you test in the `WHERE` clause:
 
 Select the correct answers.
 
-[ ] p
-[ ] rel
-[ ] m
+[ x ] p
+[ x ] rel
+[ x ] m
 [ ] PRODUCED
 
 #### Question 2
@@ -796,7 +796,7 @@ What keyword do you specify for XX?
 Select the correct answer.
 
 [ ] CONTAINS
-[ ] IN
+[ X ] IN
 [ ] IS
 [ ] EQUALS
 
@@ -816,9 +816,9 @@ What variables or aliases can be used to return values?
 Select the correct answers.
 
 [ ] a
-[ ] m
-[ ] numMovies
-[ ] movies
+[ X ] m
+[ X ] numMovies
+[ X ] movies
 
 ### Summary
 
