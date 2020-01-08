@@ -545,15 +545,113 @@ RETURN  m.title, p.name
 
 #### Eliminating duplication
 
+You have seen a number of query results where there is duplication in the results returned. In most cases, you want to eliminate duplicated results. You do so by using the DISTINCT keyword.
+
+Here is a simple example where duplicate data is returned. Tom Hanks both acted in and directed the movie, That Thing You Do, so the movie is returned twice in the result stream:
+
+```javascript
+MATCH (p:Person)-[:DIRECTED | :ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+RETURN m.released, collect(m.title) AS movies
+```
+
+We can eliminate the duplication by specifying the DISTINCT keyword as follows:
+
+```javascript
+MATCH (p:Person)-[:DIRECTED | :ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+RETURN m.released, collect(DISTINCT m.title) AS movies
+```
+
 #### Using WITH and DISTINCT to eliminate duplication
+
+Another way that you can avoid duplication is to with WITH and DISTINCT together as follows:
+
+```javascript
+MATCH (p:Person)-[:DIRECTED | :ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+WITH DISTINCT m
+RETURN m.released, m.title
+```
 
 #### Ordering results
 
+If you want the results to be sorted, you specify the expression to use for the sort using the ORDER BY keyword and whether you want the order to be descending using the DESC keyword. Ascending order is the default. Note that you can provide multiple sort expressions and the result will be sorted in that order. Just as you can use DISTINCT with WITH to eliminate duplication, you can use ORDER BY with WITH to control the sorting of results.
+
+In this example, we specify that the release date of the movies for Tom Hanks will be returned in descending order:
+
+```javascript
+MATCH (p:Person)-[:DIRECTED | :ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+RETURN m.released, collect(DISTINCT m.title) AS movies ORDER BY m.released DESC
+```
+
 #### Limiting the number of results
+
+Although you can filter queries to reduce the number of results returned, you may also want to limit the number of results. This is useful if you have very large result sets and you only need to see the beginning or end of a set of ordered results. You can use the LIMIT keyword to specify the number of results returned. Furthermore, you can use the LIMIT keyword with the WITH clause to limit results.
+
+Suppose you want to see the titles of the ten most recently released movies. You could do so as follows where you limit the number of results using the LIMIT keyword as follows:
+
+```javascript
+MATCH (m:Movie)
+RETURN m.title as title, m.released as year ORDER BY m.released DESC LIMIT 10
+```
 
 #### Controlling the number of results using WITH
 
+Previously, you saw how you can use the WITH clause to perform some intermediate processing during a query. You can use the WITH clause to limit the number of results.
+
+In this example, we count the number of movies during the query and we return the results once we have reached 5 movies:
+
+```javascript
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH a, count(*) AS numMovies, collect(m.title) as movies
+WHERE numMovies = 5
+RETURN a.name, numMovies, movies
+```
+
 ### Exercise 6: Controlling results returned
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 6.
+
+```javascript
+// Exercise 6.1: Execute a query that returns duplicate records.
+// You want to know what actors acted in movies in the decade starting with the year 1990. First write a query to retrieve all actors that acted in movies during the 1990s, where you return the released date, the movie title, and the collected actor names for the movie. For now do not worry about duplication.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN DISTINCT m.released, m.title, collect(a.name)
+
+// Exercise 6.2: Modify the query to eliminate duplication.
+// The results returned from the previous query include multiple rows for a movie released value. Next, modify the query so that the released date records returned are not duplicated. To implement this, you must add the collection of the movie titles to the results returned.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(m.title), collect(a.name)
+
+// Exercise 6.3: Modify the query to eliminate more duplication.
+// The results returned from the previous query returns the collection of movie titles with duplicates. That is because there are multiple actors per released year. Next, modify the query so that there is no duplication of the movies listed for a year.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(DISTINCT m.title), collect(a.name)
+
+// Exercise 6.4: Sort results returned.
+// Modify the query that you just wrote to order the results returned so that the more recent years are displayed first.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(DISTINCT m.title), collect(a.name)
+ORDER BY m.released DESC
+
+// Exercise 6.5: Retrieve the top 5 ratings and their associated movies.
+// Retrieve the top 5 ratings and their associated movies, returning the movie title and the rating.
+MATCH (:Person)-[r:REVIEWED]->(m:Movie)
+RETURN  m.title AS movie, r.rating AS rating
+ORDER BY r.rating DESC LIMIT 5
+
+// Exercise 6.6: Retrieve all actors that have not appeared in more than 3 movies.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  a,  count(a) AS numMovies, collect(m.title) AS movies
+WHERE numMovies <= 3
+RETURN a.name, movies
+```
 
 ### Working with Cypher data
 
