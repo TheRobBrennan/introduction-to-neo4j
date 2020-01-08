@@ -655,13 +655,112 @@ RETURN a.name, movies
 
 ### Working with Cypher data
 
+Thus far, you have specified both string and numeric types in your Cypher queries. You have also learned that nodes and relationships can have properties, whose values are structured like JSON objects. You have also learned that the collect() function can create lists of values or objects where a list is comma-separated and you can use the IN keyword to search for a value in a list. Next, you will learn more about working with lists and dates in Cypher.
+
 #### Lists
+
+There are many built-in Cypher functions that you can use to build or access elements in lists. A Cypher map is list of key/value pairs where each element of the list is of the format key: value. For example, a map of months and the number of days per month could be:
+
+`[Jan: 31, Feb: 28, Mar: 31, Apr: 30 , May: 31, Jun: 30 , Jul: 31, Aug: 31, Sep: 30, Oct: 31, Nov: 30, Dec: 31]`
+
+You can collect values for a list during a query and when you return results, you can sort by the size of the list using the size() function as follows:
+
+```javascript
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  m, count(m) AS numCast, collect(a.name) as cast
+RETURN m.title, cast, numCast ORDER BY size(cast)
+```
+
+You can read more about working with lists in the List Functions section of the Neo4j Cypher Manual.
 
 #### Unwinding lists
 
+There may be some situations where you want to perform the opposite of collecting results, but rather separate the lists into separate rows. This functionality is done using the UNWIND clause.
+
+Here is an example where we create a list with three elements, unwind the list and then return the values. Since there are three elements, three rows are returned with the values:
+
+```javascript
+WITH [1, 2, 3] AS list
+UNWIND list AS row
+RETURN list, row
+```
+
+Notice that there is no MATCH clause. You need not query the database to execute Cypher statements, but you do need the RETURN clause here to return the calculated values from the Cypher query.
+
+The UNWIND clause is frequently used when importing data into a graph.
+
 #### Dates
 
+Cypher has a built-in date() function, as well as other temporal values and functions that you can use to calculate temporal values. You use a combination of numeric, temporal, spatial, list and string functions to calculate values that are useful to your application. For example, suppose you wanted to calculate the age of a Person node, given a year they were born (the born property must exist and have a value).
+
+Here is example Cypher to retrieve all actors from the graph, and if they have a value for born, calculate the age value:
+
+```javascript
+MATCH (actor:Person)-[:ACTED_IN]->(:Movie)
+WHERE exists(actor.born)
+// calculate the age
+with DISTINCT actor, date().year  - actor.born as age
+RETURN actor.name, age as `age today`
+      ORDER BY actor.born DESC
+```
+
+Consult the Neo4j Cypher Manual for more information about the built-in functions available for working with data of all types:
+
++ Predicate
++ Scalar
++ List
++ Mathematical
++ String
++ Temporal
++ Spatial
+
 ### Exercise 7: Working with Cypher data
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 7.
+
+```javascript
+// Exercise 7.1: Collect and use lists.
+/*
+Write a Cypher query that retrieves all actors that acted in movies, and also retrieves the producers for those movies. During the query, collect the names of the actors and the names of the producers. Return the movie titles, along with the list of actors for each movie, and the list of producers for each movie making sure there is no duplication of data. Order the results returned based upon the size of the list of actors.
+
+Hints: Use two patterns for the query, one for actors, and one for producers. Use a WITH clause to collect the values for the cast and producers. You can use the size() function to calculate the size of a list for ordering purposes.
+*/
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie),
+      (m)<-[:PRODUCED]-(p:Person)
+WITH  m, collect(DISTINCT a.name) AS cast, collect(DISTINCT p.name) AS producers
+RETURN DISTINCT m.title, cast, producers
+ORDER BY size(cast)
+
+// Exercise 7.2: Collect a list.
+/*
+Write a Cypher query that retrieves all actors that acted in movies, and collects the list of movies for any actor that acted in more than five movies. Return the name of the actor and the list.
+
+Hint: Use a WITH clause and test the size of the collected list using the size() function.
+*/
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WITH p, collect(m) AS movies
+WHERE size(movies)  > 5
+RETURN p.name, movies
+
+// Exercise 7.3: Unwind a list.
+/*
+Modify the query you just wrote so that before the query processing ends, you unwind the list of movies and then return the name of the actor and the title of the associated movie
+
+Hint: Use two WITH clauses and test the size of the collected list using the size() function.
+*/
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WITH p, collect(m) AS movies
+WHERE size(movies)  > 5
+WITH p, movies UNWIND movies AS movie
+RETURN p.name, movie.title
+
+// Exercise 7.4: Perform a calculation with the date type.
+// Write a query that retrieves all movies that Tom Hanks acted in, returning the title of the movie, the year the movie was released, the number of years ago that the movie was released, and the age of Tom when the movie was released.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Tom Hanks'
+RETURN  m.title, m.released, date().year  - m.released as yearsAgoReleased, m.released  - a.born AS `age of Tom`
+ORDER BY yearsAgoReleased
+```
 
 ### Check your understanding
 
