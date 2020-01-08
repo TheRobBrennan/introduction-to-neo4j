@@ -98,9 +98,91 @@ RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
 
 ## Analyzing Cypher execution
 
+The Movie graph that you have been using during training is a very small graph. As you start working with large datasets, it will be important to not only add appropriate indexes to your graph, but also write Cypher statements that execute as efficiently as possible.
+
+There are two Cypher keywords you can prefix a Cypher statement with to analyze a query:
+
++ EXPLAIN provides estimates of the graph engine processing that will occur, but does not execute the Cypher statement.
++ PROFILE provides real profiling information for what has occurred in the graph engine during the query and executes the Cypher statement.
+
+The EXPLAIN option provides the Cypher query plan. You can compare different Cypher statements to understand the stages of processing that will occur when the Cypher executes.
+
+Here is an example where we have set the actorName and year parameters for our session and we execute this Cypher statement:
+
+```javascript
+EXPLAIN MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName AND
+      m.released <  $year
+RETURN p.name, m.title, m.released
+```
+
+Here is the query plan returned:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/EXPLAIN.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/EXPLAIN.png)
+
+You can expand each phase of the Cypher execution to examine what code is expected to run. Each phase of the query presents you with an estimate of the number of rows expected to be returned. With EXPLAIN, the query does not run, the graph engine simply produces the query plan.
+
+For a better metric for analyzing how the Cypher statement will run you use the PROFILE keyword which runs the Cypher statement and gives you run-time performance metrics.
+
+Here is the result returned using PROFILE for this Cypher statement:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/PROFILE1.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/PROFILE1.png)
+
+Here we see that for each phase of the graph engine processing, we can view the cache hits and most importantly the number of times the graph engine accessed the database (db hits). This is an important metric that will affect the performance of the Cypher statement at run-time.
+
+For example, if we were to change the Cypher statement so that the node labels are not specified, we see these metrics when we profile:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/PROFILE2.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/PROFILE2.png)
+
+Here we see more db hits which makes sense because all nodes need to be scanned for perform this query.
+
 ## Monitoring queries
 
+If you are testing an application and have run several queries against the graph, there may be times when your Neo4j Browser session hangs with what seems to be a very long-running query. There are two reasons why a Cypher query may take a long time:
+
++ The query returns a lot of data. The query completes execution in the graph engine, but it takes a long time to create the result stream.
+  + Example: MATCH (a)--(b)--(c)--(d)--(e)--(f) RETURN a
++ The query takes a long time to execute in the graph engine.
+  + Example: MATCH (a), (b), (c), (d), (e) RETURN count(id(a))
+
+If the query executes and then returns a lot of data, there is no way to monitor it or kill the query. All that you can do is close your Neo4j Browser session and start a new one. If the server has many of these rogue queries running, it will slow down considerably so you should aim to limit these types of queries. If you are running Neo4j Desktop, you can simply restart the database to clear things up, but if you are using a Neo4j Sandbox, you cannot do so. The database server is always running and you cannot restart it. Your only option is to shut down the Neo4j Sandbox and create a new Neo4j Sandbox, but then you lose any data you have worked with.
+
+If, however, the query is a long-running query, you can monitor it by using the :queries command. Here is a screenshot where we are monitoring a long-running query in another Neo4j Browser session:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/ListQueries.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/ListQueries.png)
+
+The `:queries` command calls `dbms.listQueries` under the hood, which is why we see two queries here. We have turned on AUTO-REFRESH so we can monitor the number of ms used by the graph engine thus far. You can kill the running query by double-clicking the icon in the Kill column. Alternatively, you can execute the statement CALL `dbms.killQuery('query-id')`.
+
+NOTE The :queries command is only available in the Enterprise Edition of Neo4j.
+
 ### Exercise 13: Analyzing and monitoring queries
+
+In the query edit pane of Neo4j Browser, execute the browser command: :play intro-neo4j-exercises and follow the instructions for Exercise 13.
+
+```javascript
+// Exercise 13.1: View the query plan for a Cypher statement.
+EXPLAIN MATCH (r:Person)-[rel:REVIEWED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+WHERE m.released = $year AND
+      rel.rating > $ratingValue
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 13.2: View the metrics for the query when a statement executes.
+PROFILE MATCH (r:Person)-[rel:REVIEWED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+WHERE m.released = $year AND
+      rel.rating > $ratingValue
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 13.3: Remove the labels from the nodes and relationships in the query and again view the metrics.
+PROFILE MATCH (r)-[rel]->(m)<-[:ACTED_IN]-(a)
+WHERE m.released = $year AND
+      rel.rating > $ratingValue
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 13.4: Open a second Neo4j Browser session.
+// Exercise 13.5: Execute a long-running query and monitor.
+// Exercise 13.6: Execute another long-running query and monitor.
+// Exercise 13.7: Kill a query.
+```
 
 ## Managing constraints and node keys
 
