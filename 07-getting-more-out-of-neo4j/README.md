@@ -20,9 +20,81 @@ At the end of this module, you should be able to:
 
 ## Cypher parameters
 
+In a deployed application, you should not hard code values in your Cypher statements. You use a variety values when you are testing your Cypher statements. But you don’t want to change the Cypher statement every time you test. In addition, you typically include Cypher statements in an application where parameters are passed in to the Cypher statement before it executes. For these scenarios, you should parameterize values in your Cypher statements.
+
 ### Using Cypher parameters
 
+In your Cypher statements, a parameter name begins with the $ symbol.
+
+Here is an example where we have parameterized the query:
+
+```javascript
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName
+RETURN m.released, m.title ORDER BY m.released DESC
+```
+
+At runtime, if the parameter $actorName has a value, it will be used in the Cypher statement when it runs in the graph engine.
+
+In Neo4j Browser, you can set values for Cypher parameters that will be in effect during your session.
+
+You can set the value of a single parameter in the query editor pane as shown in this example where the value Tom Hanks is set for the parameter actorName:
+
+```javascript
+:param actorName => 'Tom Hanks'
+```
+
+You can even specify a Cypher expression to the right of => to set the value of the parameter.
+
+Notice here that :param is a client-side browser command. It takes a name and expression and stores the value of that expression for the name in the session.
+
+After the actorName parameter is set, you can run the query that uses the parameter.
+
+Subsequently, you need only change the value of the parameter and not the Cypher statement to test with different values.
+
+You can also use the JSON-style syntax to set all of the parameters in your Neo4j Browser session. The values you can specify in this object are numbers, strings, and booleans. In this example we set two parameters for our session:
+
+```javascript
+:params {actorName: 'Tom Cruise', movieName: 'Top Gun'}
+```
+
+If you want to remove an existing parameter from your session, you do by by using the JSON-style syntax and excluding the parameter for your session.
+
+If you want to view the current parameters and their values, simply type `:params`
+
 ### Exercise 12: Using Cypher parameters
+
+In the query edit pane of Neo4j Browser, execute the browser command: :play intro-neo4j-exercises and follow the instructions for Exercise 12.
+
+```javascript
+// Exercise 12.1: Execute a Cypher query as described.
+// Write and execute a Cypher query that returns the names of people who reviewed movies and the actors in these movies by returning the name of the reviewer, the movie title reviewed, the release date of the movie, the rating given to the movie by the reviewer, and the list of actors for that particular movie.
+MATCH (r:Person)-[rel:REVIEWED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 12.2: Add a parameter to your session.
+:param year => 2000
+
+// Exercise 12.3: Modify the Cypher query you just wrote to use a parameter.
+MATCH (r:Person)-[rel:REVIEWED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+WHERE m.released = $year
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 12.4: Modify parameter value and retest your query.
+:param year => 2006
+
+// Exercise 12.5: Add a different parameter to your session.
+:params {year: 2006, ratingValue: 65}
+
+// Exercise 12.6: Modify the query you wrote previously to use the second parameter.
+MATCH (r:Person)-[rel:REVIEWED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+WHERE m.released = $year AND
+      rel.rating > $ratingValue
+RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
+
+// Exercise 12.7: Modify the second parameter value and retest your query.
+:params {year: 2006, ratingValue: 60}
+```
 
 ## Analyzing Cypher execution
 
