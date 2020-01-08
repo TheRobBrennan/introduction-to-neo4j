@@ -641,7 +641,7 @@ Select the correct answer.
 
 [ ] ANALYZE
 [ ] EXPLAIN
-[ ] PROFILE
+[ X ] PROFILE
 [ ] MONITOR
 
 ### Question 2
@@ -650,10 +650,10 @@ What types of constraints can you define for a graph that are asserted when a no
 
 Select the correct answers.
 
-[ ] unique values for a property of a node
+[ X ] unique values for a property of a node
 [ ] unique values for a property of a relationship
-[ ] a node must have a certain set of properties with values
-[ ] a relationship must have a certain set of properties with values
+[ X ] a node must have a certain set of properties with values
+[ X ] a relationship must have a certain set of properties with values
 
 ### Question 3
 
@@ -664,7 +664,7 @@ Select the correct answer.
 [ ] 1K
 [ ] 10K
 [ ] 1M
-[ ] 10M
+[ X ] 10M
 
 ## Summary
 
