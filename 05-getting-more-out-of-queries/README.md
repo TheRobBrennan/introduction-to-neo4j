@@ -271,29 +271,275 @@ RETURN  m.title as Movie, a.name as Actor
 
 ### Controlling query processing
 
+Now that you have learned how to provide filters for your queries by testing properties, relationships, and patterns using the WHERE clause, you will learn some additional Cypher techniques for controlling what the graph engine does during the query.
+
 #### Specifying multiple MATCH patterns
+
+This MATCH clause includes a pattern specified by two paths separated by a comma:
+
+```javascript
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie),
+      (m:Movie)<-[:DIRECTED]-(d:Person)
+WHERE m.released = 2000
+RETURN a.name, m.title, d.name
+```
+
+If possible, you should write the same query as follows:
+
+```javascript
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person)
+WHERE m.released = 2000
+RETURN a.name, m.title, d.name
+```
+
+There are, however, some queries where you will need to specify two or more patterns. Multiple patterns are used when a query is complex and cannot be satisfied with a single pattern. This is useful when you are looking for a specific node in the graph and want to connect it to a different node. You will learn about creating nodes and relationships later in this training.
 
 #### Example 1: Using two MATCH patterns
 
+Here are some examples of specifying two paths in a MATCH clause. In the first example, we want the actors that worked with Keanu Reeves to meet Hugo Weaving, who has worked with Keanu Reeves. Here we retrieve the actors who acted in the same movies as Keanu Reeves, but not when Hugo Weaving acted in the same movie. To do this, we specify two paths for the MATCH:
+
+```javascript
+MATCH (keanu:Person)-[:ACTED_IN]->(movie:Movie)<-[:ACTED_IN]-(n:Person),
+     (hugo:Person)
+WHERE keanu.name='Keanu Reeves' AND
+      hugo.name='Hugo Weaving'
+AND NOT (hugo)-[:ACTED_IN]->(movie)
+RETURN n.name
+```
+
 #### Example 2: Using two MATCH patterns
+
+Here is another example where two patterns are necessary. Suppose we want to retrieve the movies that Meg Ryan acted in and their respective directors, as well as the other actors that acted in these movies. Here is the query to do this:
+
+```javascript
+MATCH (meg:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person),
+      (other:Person)-[:ACTED_IN]->(m)
+WHERE meg.name = 'Meg Ryan'
+RETURN m.title as movie, d.name AS director , other.name AS `co-actors`
+```
 
 #### Setting path variables
 
+You have previously seen how you can assign a path used in a MATCH clause to a variable. This is useful if you want to reuse the path later in the same query or if you want to return the path. So the previous Cypher statement could return the path as follows:
+
+```javascript
+MATCH megPath = (meg:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person),
+      (other:Person)-[:ACTED_IN]->(m)
+WHERE meg.name = 'Meg Ryan'
+RETURN megPath
+```
+
 #### Specifying varying length paths
+
+Any graph that represents social networking, trees, or hierarchies will most likely have multiple paths of varying lengths. Think of the connected relationship in LinkedIn and how connections are made by people connected to more people. The Movie database for this training does not have much depth of relationships, but it does have the :FOLLOWS relationship that you learned about earlier:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/FollowsRelationships.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/FollowsRelationships.png)
+
+You write a MATCH clause where you want to find all of the followers of the followers of a Person by specifying a numeric value for the number of hops in the path. Here is an example where we want to retrieve all Person nodes that are exactly two hops away:
+
+```javascript
+MATCH (follower:Person)-[:FOLLOWS*2]->(p:Person)
+WHERE follower.name = 'Paul Blythe'
+RETURN p
+```
+
+If we had specified [:FOLLOWS*] rather than [:FOLLOWS*2], the query would return all Person nodes that are in the :FOLLOWS path from Paul Blythe.
+
+Here are simplified syntax examples for how varying length patterns are specified in Cypher:
+
+```javascript
+// Retrieve all paths of any length with the relationship, :RELTYPE from nodeA to nodeB and beyond
+(nodeA)-[:RELTYPE*]->(nodeB)
+
+// Retrieve all paths of any length with the relationship, :RELTYPE from nodeA to nodeB or from nodeB to nodeA and beyond. This is usually a very expensive query so you should place limits on how many nodes are retrieved
+(nodeA)-[:RELTYPE*]-(nodeB)
+
+// Retrieve the paths of length 3 with the relationship, :RELTYPE from nodeA to nodeB
+(node1)-[:RELTYPE*3]->(node2)
+
+// Retrieve the paths of lengths 1, 2, or 3 with the relationship, :RELTYPE from nodeA to nodeB, nodeB to nodeC, as well as, nodeC to _nodeD) (up to three hops)
+(node1)-[:RELTYPE*1..3]->(node2)
+```
+
+You can learn more about varying paths in the Patterns section of the Neo4j Cypher Manual.
 
 #### Finding the shortest path
 
+A built-in function that you may find useful in a graph that has many ways of traversing the graph to get to the same node is the shortestPath() function. Using the shortest path between two nodes improves the performance of the query.
+
+In this example, we want to discover a shortest path between the movies The Matrix and A Few Good Men. In our MATCH clause, we set the variable p to the result of calling shortestPath(), and then return p. In the call to shortestPath(), notice that we specify * for the relationship. This means any relationship; for the traversal.
+
+```javascript
+MATCH p = shortestPath((m1:Movie)-[*]-(m2:Movie))
+WHERE m1.title = 'A Few Good Men' AND
+      m2.title = 'The Matrix'
+RETURN  p
+```
+
+Notice that the graph engine has traversed many types of relationships to get to the end node.
+
+When you use the shortestPath() function, the query editor will show a warning that this type of query could potentially run for a long time. You should heed the warning, especially for large graphs. Read the Graph Algorithms documentation about the shortest path algorithm.
+
+When you use ShortestPath(), you can specify a upper limits for the shortest path. In addition, you should aim to provide the patterns for the from an to nodes that execute efficiently. For example, use labels and indexes.
+
 #### Specifying optional pattern matching
+
+OPTIONAL MATCH matches patterns with your graph, just like MATCH does. The difference is that if no matches are found, OPTIONAL MATCH will use NULLs for missing parts of the pattern. OPTIONAL MATCH could be considered the Cypher equivalent of the outer join in SQL.
+
+Here is an example where we query the graph for all people whose name starts with James. The OPTIONAL MATCH is specified to include people who have reviewed movies:
+
+```javascript
+MATCH (p:Person)
+WHERE p.name STARTS WITH 'James'
+OPTIONAL MATCH (p)-[r:REVIEWED]->(m:Movie)
+RETURN p.name, type(r), m.title
+```
+
+Notice that for all rows that do not have the :REVIEWED relationship, a null value is returned for the movie part of the query, as well as the relationship.
 
 #### Aggregation in Cypher
 
+Aggregation in Cypher is different from aggregation in SQL. In Cypher, you need not specify a grouping key. As soon as an aggregation function is used, all non-aggregated result columns become grouping keys. The grouping is implicitly done, based upon the fields in the RETURN clause.
+
+For example, in this Cypher statement, all rows returned with the same values for a.name and d.name are counted and only returned once:
+
+```javascript
+// implicitly groups by a.name and d.name
+MATCH (a)-[:ACTED_IN]->(m)<-[:DIRECTED]-(d)
+RETURN a.name, d.name, count(*)
+```
+
 #### Collecting results
+
+Cypher has a built-in function, collect() that enables you to aggregate a value into a list. Here is an example where we collect the list of movies that Tom Cruise acted in:
+
+```javascript
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name ='Tom Cruise'
+RETURN collect(m.title) AS `movies for Tom Cruise`
+```
+
+In Cypher, there is no “GROUP BY” clause as there is in SQL. The graph engine uses non-aggregated columns as an automatic grouping key.
 
 #### Counting results
 
+The Cypher count() function is very useful when you want to count the number of occurrences of a particular query result. If you specify count(n), the graph engine calculates the number of occurrences of n. If you specify count(*), the graph engine calculates the number of rows retrieved, including those with null values. When you use count(), the graph engine does an implicit group by based upon the aggregation.
+
+Here is an example where we count the paths retrieved where an actor and director collaborated in a movie and the count() function is used to count the number of paths found for each actor/director collaboration:
+
+```javascript
+MATCH (actor:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(director:Person)
+RETURN actor.name, director.name, count(m) AS collaborations, collect(m.title) AS movies
+```
+
+There are more aggregating functions such as min() or max() that you can also use in your queries. These are described in the Aggregating Functions section of the Neo4j Cypher Manual.
+
 #### Additional processing using WITH
 
+During the execution of a MATCH clause, you can specify that you want some intermediate calculations or values that will be used for further processing of the query, or for limiting the number of results before further processing is done. You use the WITH clause to perform intermediate processing or data flow operations.
+
+Here is an example where we start the query processing by retrieving all actors and their movies. During the query processing, want to only return actors that have 2 or 3 movies. All other actors and the aggregated results are filtered out. This type of query is a replacement for SQL’s “HAVING” clause. The WITH clause does the counting and collecting, but is then used in the subsequent WHERE clause to limit how many paths are visited:
+
+```javascript
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  a, count(a) AS numMovies, collect(m.title) as movies
+WHERE numMovies > 1 AND numMovies < 4
+RETURN a.name, numMovies, movies
+```
+
+When you use the WITH clause, you specify the variables from the previous part of the query you want to pass on to the next part of the query. In this example, the variable a is specified to be passed on in the query, but m is not. Since m is not specified to be passed on, m will not be available later in the query. Notice that for the RETURN clause, a, numMovies, and movies are available for use.
+
+You have to name all expressions with an alias in a WITH that are not simple variables.
+
+Here is another example where we want to find all actors who have acted in at least five movies, and find (optionally) the movies they directed and return the person and those movies:
+
+```javascript
+MATCH (p:Person)
+WITH p, size((p)-[:ACTED_IN]->(:Movie)) AS movies
+WHERE movies >= 5
+OPTIONAL MATCH (p)-[:DIRECTED]->(m:Movie)
+RETURN p.name, m.title
+```
+
+In this example, we first retrieve all people, but then specify a pattern in the WITH clause where we calculate the number of :ACTED_IN relationships retrieved using the size() function. If this value is greater than five, we then also retrieve the :DIRECTED paths to return the name of the person and the title of the movie they directed. In the result, we see that these actors acted in more than five movies, but Tom Hanks is the only actor who directed a movie and thus the only person to have a value for the movie.
+
 ### Exercise 5: Controlling query processing
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 5.
+
+```javascript
+// Exercise 5.1: Retrieve data using multiple MATCH patterns.
+// Write a Cypher query that retrieves all movies that Gene Hackman has acted in, along with the directors of the movies. In addition, retrieve the actors that acted in the same movies as Gene Hackman. Return the name of the movie, the name of the director, and the names of actors that worked with Gene Hackman.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person),
+      (a2:Person)-[:ACTED_IN]->(m)
+WHERE a.name = 'Gene Hackman'
+RETURN m.title as movie, d.name AS director , a2.name AS `co-actors`
+
+// Exercise 5.2: Retrieve particular nodes that have a relationship.
+// Retrieve all nodes that the person named James Thompson directly has the FOLLOWS relationship in either direction.
+MATCH (p1:Person)-[:FOLLOWS]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Exercise 5.3: Modify the query to retrieve nodes that are exactly three hops away.
+// Modify the query to retrieve nodes that are exactly three hops away.
+MATCH (p1:Person)-[:FOLLOWS*3]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Exercise 5.4: Modify the query to retrieve nodes that are one and two hops away.
+MATCH (p1:Person)-[:FOLLOWS*1..2]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Exercise 5.5: Modify the query to retrieve particular nodes that are connected no matter how many hops are required.
+// Modify the query to retrieve all nodes that are connected to James Thompson by a Follows relationship no matter how many hops are required.
+MATCH (p1:Person)-[:FOLLOWS*]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Exercise 5.6: Specify optional data to be retrieved during the query.
+// Write a Cypher query to retrieve all people in the graph whose name begins with Tom and optionally retrieve all people named Tom who directed a movie.
+MATCH (p:Person)
+WHERE p.name STARTS WITH 'Tom'
+OPTIONAL MATCH (p)-[:DIRECTED]->(m:Movie)
+RETURN p.name, m.title
+
+// Exercise 5.7: Retrieve nodes by collecting a list.
+// Retrieve actors and the movies they have acted in, returning each actor’s name and the list of movies they acted in.
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+RETURN p.name as actor, collect(m.title) AS `movie list`
+
+// Exercise 5.8: Retrieve all movies that Tom Cruise has acted in and the co-actors that acted in the same movie by collecting a list
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)<-[:ACTED_IN]-(p2:Person)
+WHERE p.name ='Tom Cruise'
+RETURN m.title as movie, collect(p2.name) AS `co-actors`
+
+// Exercise 5.9: Retrieve nodes as lists and return data associated with the corresponding lists.
+// Retrieve all people who reviewed a movie, returning the list of reviewers and how many reviewers reviewed the movie.
+MATCH (p:Person)-[:REVIEWED]->(m:Movie)
+RETURN m.title as movie, count(p) as numReviews, collect(p.name) as reviewers
+
+// Exercise 5.10: Retrieve nodes and their relationships as lists.
+// Retrieve all directors, their movies, and people who acted in the movies, returning the name of the director, the number of actors the director has worked with, and the list of actors.
+MATCH (d:Person)-[:DIRECTED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+RETURN d.name AS director, count(a) AS `number actors` , collect(a.name) AS `actors worked with`
+
+// Exercise 5.11: Retrieve the actors who have acted in exactly five movies.
+// Retrieve the actors who have acted in exactly five movies, returning the name of the actor, and the list of movies for that actor.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  a, count(a) AS numMovies, collect(m.title) AS movies
+WHERE numMovies = 5
+RETURN a.name, movies
+
+// Exercise 5.12: Retrieve the movies that have at least 2 directors with other optional data.
+// Retrieve the movies that have at least 2 directors, and optionally the names of people who reviewed the movies.
+MATCH (m:Movie)
+WITH m, size((:Person)-[:DIRECTED]->(m)) AS directors
+WHERE directors >= 2
+OPTIONAL MATCH (p:Person)-[:REVIEWED]->(m)
+RETURN  m.title, p.name
+```
 
 ### Controlling how results are returned
 
