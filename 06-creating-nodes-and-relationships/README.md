@@ -492,11 +492,99 @@ return p, rel, m
 
 ## Deleting nodes and relationships
 
+If a node has no relationships to any other nodes, you can simply delete it from the graph using the DELETE clause. Relationships are also deleted using the DELETE clause.
+
+If you attempt to delete a node in the graph that has relationships in or out of the node, the graph engine will return an error because deleting such a node will leave orphaned relationships in the graph.
+
 ### Deleting relationships
+
+Here are the existing nodes and relationships for the Batman Begins movie:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/BatmanBeginsRelationships.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/BatmanBeginsRelationships.png)
+
+You can delete a relationship between nodes by first finding it in the graph and then deleting it.
+
+In this example, we want to delete the ACTED_IN relationship between Christian Bale and the movie Batman Begins. We find the relationship, and then delete it:
+
+```javascript
+MATCH (a:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+DELETE rel
+RETURN a, m
+```
+
+Here is the result of running this Cypher statement:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/DeleteRelationship.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/DeleteRelationship.png)
+
+In this example, we find the node for the producer, Benjamin Melniker, as well as his relationship to movie nodes. First, we delete the relationship(s), then we delete the node:
+
+```javascript
+MATCH (p:Person)-[rel:PRODUCED]->(:Movie)
+WHERE p.name = 'Benjamin Melniker'
+DELETE rel, p
+```
 
 ### Deleting nodes and relationships
 
+The most efficient way to delete a node and its corresponding relationships is to specify DETACH DELETE. When you specify DETACH DELETE for a node, the relationships to and from the node are deleted, then the node is deleted.
+
+If were were to attempt to delete the Liam Neeson node without first deleting its relationships:
+
+```javascript
+MATCH (p:Person)
+WHERE p.name = 'Liam Neeson'
+DELETE p
+```
+
+We would see this error:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/LiamNeesonDeleteError.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/LiamNeesonDeleteError.png)
+
+Here we delete the Liam Neeson node and its relationships to any other nodes:
+
+```javascript
+MATCH (p:Person)
+WHERE p.name = 'Liam Neeson'
+DETACH DELETE  p
+```
+
 ### Exercise 10: Deleting Nodes and Relationships
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 10.
+
+```javascript
+// Exercise 10.1: Delete a relationship.
+// Recall that in the graph we have been working with, we have the HELPED relationship between Tom Hanks and Gary Sinise. We have decided that we no longer need this relationship in the graph. Delete the HELPED relationship from the graph.
+MATCH (:Person)-[rel:HELPED]-(:Person)
+DELETE rel
+
+// Exercise 10.2: Confirm that the relationship has been deleted.
+MATCH (:Person)-[rel:HELPED]-(:Person)
+RETURN rel
+
+// Exercise 10.3: Retrieve a movie and all of its relationships.
+MATCH (p:Person)-[rel]-(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p, rel, m
+
+// Exercise 10.4: Try deleting a node without detaching its relationships.
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+DELETE m
+// Neo.ClientError.Schema.ConstraintValidationFailed
+// Cannot delete node<180>, because it still has relationships. To delete this node, you must first delete its relationships.
+
+// Exercise 10.5: Delete a Movie node, along with its relationships.
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+DETACH DELETE m
+
+// Exercise 10.6: Confirm that the Movie node has been deleted.
+MATCH (p:Person)-[rel]-(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p, rel, m
+```
 
 ## Merging data in the graph
 
