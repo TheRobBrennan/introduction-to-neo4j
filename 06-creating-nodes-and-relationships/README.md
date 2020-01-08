@@ -805,9 +805,9 @@ What Cypher clauses can you use to create a node?
 
 Select the correct answers.
 
-[ ] CREATE
+[ X ] CREATE
 [ ] CREATE NODE
-[ ] MERGE
+[ X ] MERGE
 [ ] ADD
 
 ### Question 2
@@ -825,8 +825,8 @@ What Cypher clause do you add here to delete the color property from this node?
 Select the correct answers.
 
 [ ] DELETE s.color
-[ ] SET s.color=null
-[ ] REMOVE s.color
+[ X ] SET s.color=null
+[ X ] REMOVE s.color
 [ ] SET s.color=?
 
 ### Question 3
@@ -838,7 +838,7 @@ Select the correct answer.
 [ ] DELETE n
 [ ] DELETE n WITH RELATIONSHIPS
 [ ] REMOVE n
-[ ] DETACH DELETE n
+[ X ] DETACH DELETE n
 
 ## Summary
 
