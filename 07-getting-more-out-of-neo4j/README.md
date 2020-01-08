@@ -186,17 +186,142 @@ RETURN  DISTINCT r.name, m.title, m.released, rel.rating, collect(a.name)
 
 ## Managing constraints and node keys
 
+You have seen that you can accidentally create duplicate nodes in the graph if you’re not protected. In most graphs, you will want to prevent duplication of data. Unfortunately, you cannot prevent duplication by checking the existence of the exact node (with properties) as this type of test is not cluster or multi-thread safe as no locks are used. This is one reason why MERGE is preferred over CREATE, because MERGE does use locks.
+
+In addition, you have learned that a node or relationship need not have a particular property. What if you want to ensure that all nodes or relationships of a specific type (label) must set values for certain properties?
+
+A third scenario with graph data is where you want to ensure that a set of property values for nodes of the same type, have a unique value. This is the same thing as a primary key in a relational database.
+
+All of these scenarios are common in many graphs. In Neo4j, you can use Cypher to:
+
++ Add a uniqueness constraint that ensures that a value for a property is unique for all nodes of that type.
++ Add an existence constraint that ensures that when a node or relationship is created or modified, it must have certain properties set.
++ Add a node key that ensures that a set of values for properties of a node of a given type is unique.
+
+Constraints and node keys that enforce uniqueness are related to indexes which you will learn about later in this module.
+
+Existence constraints and node keys are only available in Enterprise Edition of Neo4j.
+
 ### Ensuring that a property value for a node is unique
+
+You add a uniqueness constraint to the graph by creating a constraint that asserts that a particular node property is unique in the graph for a particular type of node.
+
+Here is an example for ensuring that the title for a node of type Movie is unique:
+
+```javascript
+CREATE CONSTRAINT ON (m:Movie) ASSERT m.title IS UNIQUE
+```
+
+This Cypher statement will fail if the graph already has multiple Movie nodes with the same value for the title property. Note that you can create a uniqueness constraint, even if some Movie nodes do not have a title property.
+
+In addition, if you attempt to modify the value of a property where the uniqueness assertion fails, the property will not be updated.
 
 ### Ensuring that properties exist
 
+Having uniqueness for a property value is only useful in the graph if the property exists. In most cases, you will want your graph to also enforce the existence of properties, not only for those node properties that require uniqueness, but for other nodes and relationships where you require a property to be set. Uniqueness constraints can only be created for nodes, but existence constraints can be created for node or relationship properties.
+
+You add an existence constraint to the graph by creating a constraint that asserts that a particular type of node or relationship property must exist in the graph when a node or relationship of that type is created or updated.
+
+Here is an example for adding the existence constraint to the tagline property of all Movie nodes in the graph:
+
+```javascript
+CREATE CONSTRAINT ON (m:Movie) ASSERT exists(m.tagline)
+```
+
+We know that in the Movie graph, all :REVIEWED relationships currently have a property, rating. We can create an existence constraint on that property as follows:
+
+```javascript
+CREATE CONSTRAINT ON ()-[rel:REVIEWED]-() ASSERT exists(rel.rating)
+```
+
+You will also see this error if you attempt to remove a property from a node or relationship where the existence constraint has been created in the graph.
+
 ### Retrieving constraints defined for the graph
+
+You can run the browser command :schema to view existing indexes and constraints defined for the graph.
+
+Just as you have used other db related methods to query the schema of the graph, you can query for the set of constraints defined in the graph as follows:
+
+```javascript
+CALL db.constraints()
+```
+
+Using the method notation for the CALL statement enables you to use the call for returning results that may be used later in the Cypher statement.
 
 ### Dropping constraints
 
+You use similar syntax to drop an existence or uniqueness constraint, except that you use the DROP keyword rather than CREATE
+
+Here we drop the existence constraint for the rating property for all REVIEWED relationships in the graph:
+
+```javascript
+DROP CONSTRAINT ON ()-[rel:REVIEWED]-() ASSERT exists(rel.rating)
+```
+
 ### Creating node keys
 
+A node key is used to define the uniqueness constraint for multiple properties of a node of a certain type. A node key is also used as a composite index in the graph.
+
+Suppose that in our Movie graph, we will not allow a Person node to be created where both the name and born properties are the same. We can create a constraint that will be a node key to ensure that this uniqueness for the set of properties is asserted.
+
+Here is an example to create this node key:
+
+```javascript
+CREATE CONSTRAINT ON (p:Person) ASSERT (p.name, p.born) IS NODE KEY
+```
+
 ### Exercise 14: Managing constraints and node keys
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 14.
+
+```javascript
+// Exercise 14.1: Add a uniqueness constraint to the graph.
+CREATE CONSTRAINT ON (p:Person) ASSERT p.name IS UNIQUE
+
+// Exercise 14.2: Add an actor to the graph.
+CREATE (:Person {name: 'Tom Hanks'})
+
+// Exercise 14.3: Attempt to add an existence constraint to the Person nodes in the graph.
+CREATE CONSTRAINT ON (p:Person) ASSERT exists(p.born)
+
+// Exercise 14.4: Update Person nodes to have a born property.
+MATCH (p:Person)
+WHERE NOT exists(p.born)
+SET p.born = 0
+
+// Exercise 14.5: Add an existence constraint to the Person nodes in the graph.
+CREATE CONSTRAINT ON (p:Person) ASSERT exists(p.born)
+
+// Exercise 14.6: Add Sean Penn to the graph where you do not specify a value for born.
+CREATE (:Person {name: 'Sean Penn'})
+
+// Exercise 14.7: Add an existence constraint to a relationship in the graph.
+CREATE CONSTRAINT ON ()-[r:ACTED_IN]-() ASSERT exists(r.roles)
+
+// Exercise 14.8: Attempt to add a relationship that violates the constraint.
+MATCH (p:Person), (m:Movie)
+WHERE p.name = 'Emil Eifrem' AND
+      m.title = 'Forrest Gump'
+MERGE (p)-[:ACTED_IN]->(m)
+
+// Exercise 14.9: Add a node key to the graph.
+CREATE CONSTRAINT ON (m:Movie) ASSERT (m.title, m.released) IS NODE KEY
+
+// Exercise 14.10: Add the movie node to the graph.
+CREATE (:Movie {title: 'Back to the Future', released: 1985, tagline: 'Our future.'})
+
+// Exercise 14.11: Add a similar movie node with slightly different property values.
+CREATE (:Movie {title: 'Back to the Future', released: 2018, tagline: 'The future is ours.'})
+
+// Exercise 14.12: Try adding the 2018 movie again.
+CREATE (:Movie {title: 'Back to the Future', released: 2018, tagline: 'The future is ours.'})
+
+// Exercise 14.13: Display the list of constraints defined in the graph.
+CALL db.constraints()
+
+// Exercise 14.14: Drop an existence constraint.
+DROP CONSTRAINT ON ()-[ acted_in:ACTED_IN ]-() ASSERT exists(acted_in.roles)
+```
 
 ## Managing indexes
 
