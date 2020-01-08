@@ -588,15 +588,214 @@ RETURN p, rel, m
 
 ## Merging data in the graph
 
+Thus far, you have learned how to create nodes, labels, properties, and relationships in the graph. You can use MERGE to either create new nodes and relationships or to make structural changes to existing nodes and relationships.
+
+For example, how the graph engine behaves when a duplicate element is created depends on the type of element:
+
+| If you use CREATE:  | The result is:
+| ---                 | ---
+| Node                | If a node with the same property values exists, a duplicate node is created.
+| Label               | If the label already exists for the node, the node is not updated.
+| Property            | If the node or relationship property already exists, it is updated with the new value.
+|                     | Note: If you specify a set of properties to be created using = rather than +=, it could remove existing properties if they are not included in the set.
+| Relationship        | If the relationship exists, a duplicate relationship is created.
+
+WARNING: You should never create duplicate nodes or relationships in a graph.
+
+The MERGE clause is used to find elements in the graph. But if the element is not found, it is created.
+
+You use the MERGE clause to:
+
++ Create a unique node based on label and key information for a property and if it exists, optionally update it.
++ Create a unique relationship.
++ Create a node and relationship to it uniquely in the context of another node.
+
 ### Using MERGE to create nodes
 
+Here is the simplified syntax for the MERGE clause for creating a node:
+
+```javascript
+MERGE (variable:Label{nodeProperties})
+RETURN variable
+```
+
+If there is an existing node with Label and nodeProperties found in the graph, no node is created. If, however the node is not found in the graph, then the node is created.
+
+When you specify nodeProperties for MERGE, you should only use properties that satisfy some sort of uniqueness constraint. You will learn about uniqueness constraints in the next module.
+
+Here we use MERGE to find a node with the Actor label with the key property name of Michael Caine, and we set the born property to 1933. Our data model has never used the label, Actor so this is a new entity type in our graph:
+
+```javascript
+MERGE (a:Actor {name: 'Michael Caine'})
+SET a.born = 1933
+RETURN a
+```
+
+If we had a node labeled `Person` with the same name value, this MERGE statement would create a new node.
+
+NOTE: When you specify the node to merge, you should only use properties that have a unique index. You will learn about uniqueness later in this training.
+
 ### Using MERGE to create relationships
+
+Here is the syntax for the MERGE clause for creating relationships:
+
+```javascript
+MERGE (variable:Label {nodeProperties})-[:REL_TYPE]->(otherNode)
+RETURN variable
+```
+
+If there is an existing node with Label and nodeProperties with the :REL_TYPE to otherNode found in the graph, no relationship is created. If the relationship does not exist, it is created.
+
+Although, you can leave out the direction of the relationship being created with the MERGE, in which case a left-to-right arrow will be assumed, a best practice is to always specify the direction of the relationship. However, if you have bidirectional relationships and you want to avoid creating duplicate relationships, you must leave off the arrow.
 
 ### Specifying creation behavior when merging
 
+You can use the MERGE clause, along with ON CREATE to assign specific values to a node being created as a result of an attempt to merge.
+
+Here is an example where create a new node, specifying property values for the new node:
+
+```javascript
+MERGE (a:Person {name: 'Sir Michael Caine'})
+ON CREATE SET a.birthPlace = 'London',
+              a.born = 1934
+RETURN a
+```
+
+We know that there are no existing Sir Michael Caine Person nodes. When the MERGE executes, it will not find any matching nodes so it will create one and will execute the ON CREATE clause where we set the birthplace and born property values.
+
+You can also specify an ON MATCH clause during merge processing. If the exact node is found, you can update its properties or labels. Here is an example:
+
+```javascript
+MERGE (a:Person {name: 'Sir Michael Caine'})
+ON CREATE SET a.born = 1934,
+              a.birthPlace = 'UK'
+ON MATCH SET a.birthPlace = 'UK'
+RETURN a
+```
+
 ### Using MERGE to create relationships
 
+Using MERGE to create relationships is expensive and you should only do it when you need to ensure that a relationship is unique and you are not sure if it already exists.
+
+In this example, we use the MATCH clause to find all Person nodes that represent Michael Caine and we find the movie, Batman Begins that we want to connect to all of these nodes. We already have a connection between one of the Person nodes and the Movie node. We do not want this relationship to be duplicated. This is where we can use MERGE as follows:
+
+```javascript
+MATCH (p:Person), (m:Movie)
+WHERE m.title = 'Batman Begins' AND p.name ENDS WITH 'Caine'
+MERGE (p)-[:ACTED_IN]->(m)
+RETURN p, m
+```
+
+You must be aware of the behavior of the MERGE clause and how it will automatically create nodes and relationships. MERGE tries to find a full pattern and if it doesn’t find it, it creates that full pattern. That’s why in most cases you should first MERGE your nodes and then your relationship afterwards.
+
+Only if you intentionally want to create a node within the context of another (like a month within a year) then a MERGE pattern with one bound and one unbound node makes sense.
+
+For example:
+
+```javascript
+MERGE (fromDate:Date {year: 2018})<-[:IN_YEAR]-(toDate:Date {month: 'January'})
+```
+
 ### Exercise 11: Merging Data in the graph
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 11.
+
+```javascript
+// Exercise 11.1: Use MERGE to create a Movie node.
+// Use MERGE to create (ON CREATE) a node of type Movie with the title property, Forrest Gump. If created, set the released property to 1994.
+MERGE (m:Movie {title: 'Forrest Gump'})
+ON CREATE SET m.released = 1994
+RETURN m
+
+// Exercise 11.2: Use MERGE to update a node.
+// Use MERGE to update (ON MATCH) a node of type Movie with the title property, Forrest Gump. If found, set the tagline property to "Life is like a box of chocolates…​you never know what you’re gonna get.".
+MERGE (m:Movie {title: 'Forrest Gump'})
+ON CREATE SET m.released = 1994
+ON MATCH SET m.tagline = "Life is like a box of chocolates...you never know what you're gonna get."
+RETURN m
+
+// Exercise 11.3: Use MERGE to create a Production node.
+// Use MERGE to create (ON CREATE) a node of type Production with the title property, Forrest Gump. If created, set the property year to the value 1994.
+MERGE (p:Production {title: 'Forrest Gump'})
+ON CREATE SET p.year = 1994
+RETURN p
+
+// Exercise 11.4: Find all labels for nodes with a property value.
+// Query the graph to find labels for nodes with the title property, Forrest Gump.
+MATCH (m)
+WHERE m.title = 'Forrest Gump'
+RETURN  labels(m)
+
+// Exercise 11.5: Use MERGE to update a Production node.
+// Use MERGE to update (ON MATCH) the existing Production node for Forrest Gump to add the company property with a value of Paramount Pictures.
+MERGE (p:Production {title: 'Forrest Gump'})
+ON MATCH SET p.company = 'Paramount Pictures'
+RETURN p
+
+// Exercise 11.6: Use MERGE to add a label to a node.
+// Use MERGE to add the OlderMovie label to the movie, Forrest Gump.
+MERGE (m:Movie {title: 'Forrest Gump'})
+ON MATCH SET m:OlderMovie
+RETURN labels(m)
+
+// Exercise 11.7: Use MERGE to create two nodes and a single relationship.
+//  Execute the following Cypher statement that uses MERGE to create two nodes and a single relationship
+MERGE (p:Person {name: 'Robert Zemeckis'})-[:DIRECTED]->(m {title: 'Forrest Gump'})
+// This statement first finds all Person nodes that have only the name property value of Robert Zemeckis. It then finds all nodes with only the title property set to Forrest Gump. There are no Person or other nodes that have only these properties so the graph engine creates them. Then the graph engine creates the relationship between these two nodes. That is, this MERGE operation creates two nodes and a single relationship. If we had provided all of the property values for the nodes, we would not have created the extra nodes.
+//
+// In fact, you should never create nodes and relationships together like this! This example is here to show you how powerful Cypher can be. A best practice is to create nodes first, then relationships.
+
+// Exercise 11.8: Use the same MERGE statement to attempt to create two nodes and a single relationship.
+// Repeat the execution of the previous statement
+
+// Exercise 11.9: Find the correct Person node to delete.
+MATCH (p:Person {name: 'Robert Zemeckis'})-[rel]-(x)
+WHERE NOT EXISTS (p.born)
+RETURN p, rel, x
+
+// Exercise 11.10: Delete this Person node, along with its relationships.
+MATCH (p:Person {name: 'Robert Zemeckis'})--()
+WHERE NOT EXISTS (p.born)
+DETACH DELETE p
+
+// Exercise 11.11: Find the correct Forrest Gump node to delete.
+MATCH (m)
+WHERE m.title = 'Forrest Gump' AND labels(m) = []
+RETURN m, labels(m)
+
+// Exercise 11.12: Delete the Forrest Gump node.
+// It should have no relationships associated with it, but if it did for some reason we could use DETACH DELETE as a safeguard
+MATCH (m)
+WHERE m.title = 'Forrest Gump' AND labels(m) = []
+DETACH DELETE m
+
+// Exercise 11.13: Use MERGE to create the DIRECTED relationship.
+// Use MERGE to create the DIRECTED relationship between Robert Zemeckis and the Movie, Forrest Gump.
+MATCH (p:Person), (m:Movie)
+WHERE p.name = 'Robert Zemeckis' AND m.title = 'Forrest Gump'
+MERGE (p)-[:DIRECTED]->(m)
+
+// Exercise 11.14: Use MERGE to create the ACTED_IN relationship.
+// Use MERGE to create the ACTED_IN relationship between the actors, Tom Hanks, Gary Sinise, and Robin Wright and the Movie, Forrest Gump.
+MATCH (p:Person), (m:Movie)
+WHERE p.name IN ['Tom Hanks','Gary Sinise', 'Robin Wright']
+      AND m.title = 'Forrest Gump'
+MERGE (p)-[:ACTED_IN]->(m)
+
+// Exercise 11.15: Modify the role relationship property.
+// Modify the relationship property, role for their roles in Forrest Gump:
+//   Tom Hanks is Forrest Gump
+//   Gary Sinise is Lt. Dan Taylor
+//   Robin Wright is Jenny Curran
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump'
+SET rel.roles =
+CASE p.name
+  WHEN 'Tom Hanks' THEN ['Forrest Gump']
+  WHEN 'Robin Wright' THEN ['Jenny Curran']
+  WHEN 'Gary Sinise' THEN ['Lt. Dan Taylor']
+END
+```
 
 ## Check your understanding
 
