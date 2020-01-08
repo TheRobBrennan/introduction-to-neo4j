@@ -325,27 +325,307 @@ DROP CONSTRAINT ON ()-[ acted_in:ACTED_IN ]-() ASSERT exists(acted_in.roles)
 
 ## Managing indexes
 
+The uniqueness and node key constraints that you add to a graph are essentially single-property and composite indexes respectively. Indexes are used to improve initial node lookup performance, but they require additional storage in the graph to maintain and also add to the cost of creating or modifying property values that are indexed. Indexes store redundant data that points to nodes with the specific property value or values. Unlike SQL, there is no such thing as a primary key in Neo4j. You can have multiple properties on nodes that must be unique.
+
+Here is a brief summary of when single-property indexes are used:
+
++ Equality checks =
++ Range comparisons >,>=,<, <=
++ List membership IN
++ String comparisons STARTS WITH, ENDS WITH, CONTAINS
++ Existence checks exists()
++ Spatial distance searches distance()
++ Spatial bounding searches point()
++ Composite indexes are used only for equality checks and list membership.
+
+In this module, we introduce the basics of Neo4j indexes, but you should consult the Neo4j Operations Manual for more details about creating and maintaining indexes.
+
+NOTE	Because index maintenance incurs additional overhead when nodes are created, We recommend that for large graphs, indexes are created after the data has been loaded into the graph. You can view the progress of the creation of an index when you use the :schema command.
+
 ### Indexes for range searches
+
+When you add an index for a property of a node, it can greatly reduce the number of nodes the graph engine needs to visit in order to satisfy a query.
+
+In this query we are testing the value of the released property of a Movie node using ranges:
+
+```javascript
+MATCH (m:Movie)
+WHERE 1990 < m.released < 2000
+SET m.videoFormat = 'DVD'
+```
+
+The graph engine, using an index, will find the pointers to all nodes that satisfy the query without having to visit all of the nodes:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/IndexForRanges.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/IndexForRanges.png)
+
 
 ### Creating indexes
 
+You create an index to improve graph engine performance. A unique constraint on a property is an index so you need not create an index for any properties you have created uniqueness constraints for. An index on its own does not guarantee uniqueness.
+
+Here is an example of how we would create a single-property index on the released property of all nodes of type Movie:
+
+```javascript
+CREATE INDEX ON :Movie(released)
+```
+
+If a set of properties for a node must be unique for every node, then you should create a constraint as a node key, rather than an index.
+
+If, however, there can be duplication for a set of property values, but you want faster access to them, then you can create a composite index. A composite index is based upon multiple properties for a node.
+
+Suppose we added the property, videoFormat to every Movie node and set its value, based upon the released date of the movie as follows:
+
+```javascript
+MATCH (m:Movie)
+WHERE m.released >= 2000
+SET m.videoFormat = 'DVD';
+
+MATCH (m:Movie)
+WHERE m.released < 2000
+SET m.videoFormat = 'VHS'
+```
+
+Notice that in the above Cypher statements we use the semi-colon ; to separate Cypher statements. In general, you need not end a Cypher statement with a semi-colon, but if you want to execute multiple Cypher statements, you must separate them. You have already used the semi-colon to separate Cypher statements when you loaded the Movie database in the training exercises.
+
+Now that the graph has Movie nodes with both the properties, released and videoFormat, we can create a composite index on these properties as follows:
+
+```javascript
+CREATE INDEX ON :Movie(released, videoFormat)
+```
+
 ### Retrieving indexes
+
+Just as you can retrieve the constraints defined for the graph using :schema or CALL db.constraints(), you can retrieve the indexes:
+
+```javascript
+CALL db.indexes()
+```
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/Call_db-indexes.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/Call_db-indexes.png)
+
+Notice that the unique constraints and node keys are also shown as indexes in the graph.
 
 ### Dropping indexes
 
+ou can drop an existing index that you created with CREATE INDEX.
+
+Here is an example of dropping the composite index that we just created:
+
+```javascript
+DROP INDEX ON :Movie(released, videoFormat)
+```
+
 ### Exercise 15: Managing indexes
+
+In the query edit pane of Neo4j Browser, execute the browser command: :play intro-neo4j-exercises and follow the instructions for Exercise 15.
+
+```javascript
+// Exercise 15.1: Create an index.
+CREATE INDEX ON :Person(born)
+
+// Exercise 15.2: View index information.
+CALL db.indexes()
+
+// Exercise 15.3: Drop an index.
+DROP INDEX ON :Person(born)
+```
 
 ## Going from relational to graph with Neo4j
 
+[WATCH: Intro to Graph Databases Episode #4 - (RDBMS+SQL) to (Graphs+Cypher) ~17:05](https://www.youtube.com/watch?v=NO3C-CWykkY)
+
 ## Importing data
+
+In many applications, it is the case that the data that you want to populate your graph with comes from data that was written to .csv files or files of other types. There are many nuances and best practices for loading data into a graph from files. In this module, you will be introduced to some simple steps for loading CSV data into your graph with Cypher. If you are interested in direct loading of data from a relational DBMS into a graph, you should read about the Neo4j Extract Transform Load (ETL) tool at http://neo4j.com/developer/neo4j-etl/, as well as many of the useful pre-written procedures that are available for your use in the APOC library.
+
+In Cypher, you can:
+
++ Load data from a URL (http(s) or file).
++ Process data as a stream of records.
++ Create or update the graph with the data being loaded.
++ Use transactions during the load.
++ Transform and convert values from the load stream.
++ Load up to 10M nodes and relationships.
++ CSV import is commonly used to import data into a graph. If you want to import data from CSV, you will need to first develop a model that describes how data from your CSV maps to data in your graph.
 
 ### Importing normalized data using LOAD CSV
 
+Cypher provides an elegant built-in way to import tabular CSV data into graph structures.
+
+The LOAD CSV clause parses a local in the import directory of your Neo4j installation or a remote file into a stream of rows which represent maps (with headers) or lists. Then you can use whichever Cypher operations you want to either create nodes or relationships or to merge with the existing graph.
+
+Here is the simplified syntax for using LOAD CSV:
+
+```javascript
+LOAD CSV WITH HEADERS FROM url-value
+AS row        // row is a variable that is used to extract data
+```
+
+The first line of the file must contain a comma-separated list of column names. The url-value can be a resource or a file on your system. Each line contains data that is interpreted as values for each column name. When each line is read from the file, you can perform the necessary processing to create or merge data into the graph.
+
+As CSV files usually represent either node or relationship lists, you will run multiple passes to create nodes and relationships separately.
+
+Before you load data from CSV files into your graph, you should first confirm that the data retrieved looks OK. Rather than creating nodes or relationships, you can simply return information about the data to be loaded.
+
+For example you can execute this Cypher statement to get a count of the data to be loaded from the movies_to_load.csv file so you have an idea of how much data will be loaded:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN count(*)
+```
+
+You might even want to visually inspect the data before you load it to see if it is what you were expecting:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN * LIMIT 1
+```
+
+You may want to format the data before it is loaded to confirm it matches what you want in your graph:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN line.id, line.title, toInteger(line.year), trim(line.summary)
+```
+
+The following query creates the Movie nodes using some of the data from movies_to_load.csv as properties:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+CREATE (movie:Movie { movieId: line.id, title: line.title, released: toInteger(line.year) , tagline: trim(line.summary)})
+```
+
+We assign a value to movieId from the id data in the CSV file. In addition, we assign the data from summary to the tagline property, with a trim. We also convert the data read from year to an integer using the built-in function toInteger() before assigning it to the released property.
+
+In case you already have people in your database, you will want to avoid creating duplicates. That’s why instead of just creating them, we use MERGE to ensure unique entries after the import. We use the ON CREATE clause to set the values for name and born:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/persons_to_load.csv'
+AS line
+MERGE (actor:Person { personId: line.Id })
+ON CREATE SET actor.name = line.name,
+              actor.born = toInteger(trim(line.birthyear))
+```
+
+There are a couple of things to note here. The name of the column is case-sensitive. In addition, notice that the data for the birthyear column as an extra space before the data. To allow this data to be converted to an integer, we must first trim the whitespace using the trim() built-in function.
+
+The query below matches the entries of line.personId and line.movieId to their respective Movie and Person nodes, and creates an ACTED_IN relationship between the person and the movie. This model includes a relationship property of role, which is passed via line.role:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/roles_to_load.csv'
+AS line
+MATCH (movie:Movie { movieId: line.movieId })
+MATCH (person:Person { personId: line.personId })
+CREATE (person)-[:ACTED_IN { roles: [line.role]}]->(movie)
+```
+
 ### Importing denormalized data
+
+If your file contains denormalized data, you can run the same file with multiple passes and simple operations as shown above. Alternatively, you might have to use MERGE to create nodes and relationships uniquely.
+
+Here are the Cypher statements to load this data:
+
+```javascript
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movie_actor_roles_to_load.csv'
+AS line FIELDTERMINATOR ';'
+MERGE (movie:Movie { title: line.title })
+ON CREATE SET movie.released = toInteger(line.released),
+              movie.tagline = line.summary
+MERGE (actor:Person { name: line.actor })
+ON CREATE SET actor.born = toInteger(line.birthyear)
+MERGE (actor)-[r:ACTED_IN]->(movie)
+ON CREATE SET r.roles = split(line.characters,',')
+```
+
+Notice a couple of things in this Cypher statement. This file uses a semi-colon as a field terminator, rather than the default comma. In addition, the built-in method split() is used to create the list for the roles property.
+
+For large denormalized files, it may still make sense to create nodes and relationships separately in multiple passes. That would depend on the complexity of the operations and the experienced performance.
 
 ### Importing a large dataset
 
+If you import a larger amount of data (more than 10,000 rows), it is recommended to prefix your LOAD CSV clause with a PERIODIC COMMIT hint. This allows the database to regularly commit the import transactions to avoid memory churn for large transaction-states.
+
 ### Exercise 16: Importing data
+
+In the query edit pane of Neo4j Browser, execute the browser command: :play intro-neo4j-exercises and follow the instructions for Exercise 16.
+
+```javascript
+// Exercise 16.1: Write the Cypher statement to read the actor data from a file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/actors.csv'
+AS line
+RETURN line.id, line.name, line.birthYear
+
+// Exercise 16.2: Read the data and return it, ensuring that the data returned is properly formatted.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/actors.csv'
+AS line
+RETURN line.id, line.name, toInteger(trim(line.birthYear))
+
+// Exercise 16.3: Load the data into your graph.
+// Hint: Use MERGE because the graph already contains some of these actors.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/actors.csv'
+AS line
+MERGE (actor:Person {name: line.name})
+  ON CREATE SET actor.born = toInteger(trim(line.birthYear)), actor.actorId = line.id
+  ON MATCH SET actor.actorId = line.id
+
+// Exercise 16.4: Write the Cypher statement to read the movie data from a file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies.csv'
+AS line
+RETURN line.id, line.title, line.year, line.tagLine
+
+// Exercise 16.5: Read the data and return it, ensuring that the data returned is properly formatted.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies.csv'
+AS line
+RETURN line.id, line.title, toInteger(line.year), trim(line.tagLine)
+
+// Exercise 16.6: Load the data into your graph.
+// Hint: Use MERGE because the graph already contains some of these movies.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies.csv'
+AS line
+MERGE (m:Movie {title: line.title})
+ON CREATE
+  SET m.released = toInteger(trim(line.year)),
+      m.movieId = line.id,
+      m.tagline = line.tagLine
+  ON MATCH SET m.movieId = line.id
+
+// Exercise 16.7: Write the Cypher statement to read the relationship data from a file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/roles.csv'
+AS line FIELDTERMINATOR ';'
+RETURN line.personId, line.movieId, line.Role
+
+// Exercise 16.8: Read the data and return it, ensuring that the data returned is properly formatted.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/roles.csv'
+AS line FIELDTERMINATOR ';'
+RETURN line.personId, line.movieId, split(line.Role,',')
+
+// Exercise 16.9: Load the data into your graph.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/roles.csv'
+AS line FIELDTERMINATOR ';'
+MATCH (movie:Movie { movieId: line.movieId })
+MATCH (person:Person { actorId: line.personId })
+MERGE (person)-[:ACTED_IN { roles: split(line.Role,',')}]->(movie)
+```
 
 ## Accessing Neo4j resources
 
