@@ -292,11 +292,203 @@ RETURN p
 
 ## Creating relationships
 
+As you have learned in the previous exercises where you query the graph, you often query using connections between nodes. The connections capture the semantic relationships and context of the nodes in the graph.
+
+Here is the simplified syntax for creating a relationship between two nodes referenced by the variables x and y:
+
+```javascript
+CREATE (x)-[:REL_TYPE]->(y)
+
+CREATE (x)<-[:REL_TYPE]-(y)
+```
+
+When you create the relationship, it must have direction. You can query nodes for a relationship in either direction, but you must create the relationship with a direction. An exception to this is when you create a node using MERGE that you will learn about later in this module.
+
+In most cases, unless you are connecting nodes at creation time, you will retrieve the two nodes, each with their own variables, for example, by specifying a WHERE clause to find them, and then use the variables to connect them.
+
+Here is an example. We want to connect the actor, Michael Caine with the movie, Batman Begins. We first retrieve the nodes of interest, then we create the relationship:
+
+```javascript
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Michael Caine' AND m.title = 'Batman Begins'
+CREATE (a)-[:ACTED_IN]->(m)
+RETURN a, m
+```
+
+Before you run these Cypher statements, you may see a warning in Neo4j Browser that you are creating a query that is a cartesian product that could potentially be a performance issue. You will see this warning if you have no unique constraint on the lookup keys. You will learn about uniqueness constraints later in the next module. If you are familiar with the data in the graph and can be sure that the MATCH clauses will not retrieve large amounts of data, you can continue. In our case, we are simply looking up a particular Person node and a particular Movie node so we can create the relationship.
+
+You can create multiple relationships at once by simply providing the pattern for the creation that includes the relationship types, their directions, and the nodes that you want to connect.
+
+Here is an example where we have already created Person nodes for an actor, Liam Neeson, and a producer, Benjamin Melniker. We create two relationships in this example, one for ACTED_IN and one for PRODUCED:
+
+```javascript
+MATCH (a:Person), (m:Movie), (p:Person)
+WHERE a.name = 'Liam Neeson' AND
+      m.title = 'Batman Begins' AND
+      p.name = 'Benjamin Melniker'
+CREATE (a)-[:ACTED_IN]->(m)<-[:PRODUCED]-(p)
+RETURN a, m, p
+```
+
+Here is the result of running this Cypher statement:
+
+![https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/CreateTwoRelationships.png](https://s3-us-west-1.amazonaws.com/data.neo4j.com/intro-neo4j/img/CreateTwoRelationships.png)
+
+When you create relationships based upon a MATCH clause, you must be certain that only a single node is returned for the MATCH, otherwise multiple relationships will be created.
+
 ### Adding properties to relationships
+
+You can add properties to a relationship, just as you add properties to a node. You use the SET clause to do so.
+
+Here is the simplified syntax for adding properties to a relationship referenced by the variable r:
+
+```javascript
+SET r.propertyName = value
+
+SET r.propertyName1 = value1    , r.propertyName2 = value2
+
+SET r = {propertyName1: value1, propertyName2: value2}
+
+SET r += {propertyName1: value1, propertyName2: value2}
+```
+
+If the property does not exist, it is added to the relationship. If the property exists, its value is updated for the relationship. When specify the JSON-style object for assignment to the relationship using =, the object must include all of the properties for the relationship, just as you need to do for nodes. If you use +=, you can add or update properties, just as you do for nodes.
+
+Here is an example where we will add the roles property to the ACTED_IN relationship from Christian Bale to Batman Begins right after we have created the relationship:
+
+```javascript
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+CREATE (a)-[rel:ACTED_IN]->(m)
+SET rel.roles = ['Bruce Wayne','Batman']
+RETURN a, m
+```
+
+The roles property is a list so we add it as such. If the relationship had multiple properties, we could have added them as a comma separated list or as an object, like can do for node properties.
+
+You can also add properties to a relationship when the relationship is created. Here is another way to create and add the properties for the relationship:
+
+```javascript
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+CREATE (a)-[:ACTED_IN {roles: ['Bruce Wayne', 'Batman']}]->(m)
+RETURN a, m
+```
+
+By default, the graph engine will create a relationship between two nodes, even if one already exists. You can test to see if the relationship exists before you create it as follows:
+
+```javascript
+MATCH (a:Person),(m:Movie)
+WHERE a.name = 'Christian Bale' AND
+      m.title = 'Batman Begins' AND
+      NOT exists((a)-[:ACTED_IN]->(m))
+CREATE (a)-[rel:ACTED_IN]->(m)
+SET rel.roles = ['Bruce Wayne','Batman']
+RETURN a, rel, m
+```
+
+You can prevent duplication of relationships by merging data using the MERGE clause, rather than the CREATE clause. You will learn about merging data later in this module.
 
 ### Removing properties from a relationship
 
+There are two ways that you can remove a property from a node. One way is to use the REMOVE keyword. The other way is to set the property’s value to null, just as you do for properties of nodes.
+
+Suppose we have added the ACTED_IN relationship between Christian Bale and the movie, Batman Returns where the roles property is added to the relationship. Here is an example to remove the roles property, yet keep the ACTED_IN relationship:
+
+```javascript
+MATCH (a:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+REMOVE rel.roles
+RETURN a, rel, m
+```
+
+An alternative to `REMOVE rel.roles` would be `SET rel.roles = null`
+
 ### Exercise 9: Creating Relationships
+
+In the query edit pane of Neo4j Browser, execute the browser command: `:play intro-neo4j-exercises` and follow the instructions for Exercise 9.
+
+```javascript
+// Exercise 9.1: Create ACTED_IN relationships.
+// In the last exercise, you created the node for the movie, Forrest Gump and the person, Robin Wright. Create the ACTED_IN relationship between the actors, Robin Wright, Tom Hanks, and Gary Sinise and the movie, Forrest Gump.
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+MATCH (p:Person)
+WHERE p.name = 'Tom Hanks' OR p.name = 'Robin Wright' OR p.name = 'Gary Sinise'
+CREATE (p)-[:ACTED_IN]->(m)
+
+// Exercise 9.2: Create DIRECTED relationships.
+// Create the DIRECTED relationship between Robert Zemeckis and the movie, Forrest Gump.
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+MATCH (p:Person)
+WHERE p.name = 'Robert Zemeckis'
+CREATE (p)-[:DIRECTED]->(m)
+
+// Exercise 9.3: Create a HELPED relationship.
+// Create a new relationship, HELPED from Tom Hanks to Gary Sinise.
+MATCH (p1:Person)
+WHERE p1.name = 'Tom Hanks'
+MATCH (p2:Person)
+WHERE p2.name = 'Gary Sinise'
+CREATE (p1)-[:HELPED]->(p2)
+
+// Exercise 9.4: Query nodes and new relationships.
+// Write a Cypher query to return all nodes connected to the movie, Forrest Gump, along with their relationships.
+MATCH (p:Person)-[rel]-(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p, rel, m
+
+// Exercise 9.5: Add properties to relationships.
+// Next, you will add some properties to the relationships that you just created.
+// Add the roles property to the three ACTED_IN relationships that you just created to the movie, Forrest Gump using this information: Tom Hanks played the role, Forrest Gump. Robin Wright played the role, Jenny Curran. Gary Sinise played the role, Lieutenant Dan Taylor.
+// Hint: You can set each relationship using separate MATCH clauses. You can also use a CASE clause to set the values. Look up in the documentation for how to use the CASE clause.
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump'
+SET rel.roles =
+CASE p.name
+  WHEN 'Tom Hanks' THEN ['Forrest Gump']
+  WHEN 'Robin Wright' THEN ['Jenny Curran']
+  WHEN 'Gary Sinise' THEN ['Lieutenant Dan Taylor']
+END
+
+// Exercise 9.6: Add a property to the HELPED relationship.
+// Add a new property, research to the HELPED relationship between Tom Hanks and Gary Sinise and set this property’s value to war history.
+MATCH (p1:Person)-[rel:HELPED]->(p2:Person)
+WHERE p1.name = 'Tom Hanks' AND p2.name = 'Gary Sinise'
+SET rel.research = 'war history'
+
+// Exercise 9.7: View the current list of property keys in the graph.
+call db.propertyKeys
+
+// Exercise 9.8: View the current schema of the graph.
+call db.schema
+
+// Exercise 9.9: Retrieve the names and roles for actors.
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p.name, rel.roles
+
+// Exercise 9.10: Retrieve information about any specific relationships.
+MATCH (p1:Person)-[rel:HELPED]-(p2:Person)
+RETURN p1.name, rel, p2.name
+
+// Exercise 9.11: Modify a property of a relationship.
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump' AND p.name = 'Gary Sinise'
+SET rel.roles =['Lt. Dan Taylor']
+
+// Exercise 9.12: Remove a property from a relationship.
+// Remove the research property from the HELPED relationship from Tom Hanks to Gary Sinise.
+MATCH (p1:Person)-[rel:HELPED]->(p2:Person)
+WHERE p1.name = 'Tom Hanks' AND p2.name = 'Gary Sinise'
+REMOVE rel.research
+
+// Exercise 9.13: Confirm that your modifications were made to the graph.
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump'
+return p, rel, m
+```
 
 ## Deleting nodes and relationships
 
